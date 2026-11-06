@@ -1136,12 +1136,15 @@ el.fontInput.addEventListener('change', async () => {
   for (const f of files) {
     try {
       const bytes = await f.arrayBuffer();
-      const entry = await addFontFromBytes(bytes, f.name); // 无效字体在此抛"不可用"
+      const entry = await addFontFromBytes(bytes, f.name); // 不可用字体在此抛"不可用"
+      const previewNote = entry.previewOk
+        ? ''
+        : '（浏览器无法预览该字体，界面将以默认字体显示；导出 PDF 仍使用真实字体）';
       // 桌面版：同时把字体文件写入用户字体目录，重启后自动加载
       if (window.electronAPI?.saveFontFile) {
         try {
           await window.electronAPI.saveFontFile({ file: f.name, data: bytes });
-          setStatus(`字体已导入并保存到字体目录：${f.name}`, false);
+          setStatus(`字体已导入并保存到字体目录：${f.name}${previewNote}`, false);
         } catch (err) {
           setStatus(`字体已加载（保存到字体目录失败：${err.message}）`, true);
         }
@@ -1157,7 +1160,7 @@ el.fontInput.addEventListener('change', async () => {
             const j = await res.json().catch(() => ({}));
             throw new Error(j.error || `HTTP ${res.status}`);
           }
-          setStatus(`字体已导入并保存到字体目录：${f.name}`, false);
+          setStatus(`字体已导入并保存到字体目录：${f.name}${previewNote}`, false);
         } catch (err) {
           fonts.delete(entry.id); // 后端判定不可用：从会话移除，避免导出时失败
           setStatus(`字体不可用（${f.name}）：${err.message}`, true);
