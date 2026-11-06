@@ -86,17 +86,21 @@ input:disabled, select:disabled, button:disabled { opacity: .45; cursor: not-all
 #btnBold.active, #btnItalic.active, #btnUnderline.active {
   background: #2563eb; border-color: #2563eb; color: #fff;
 }
-/* 斜体方向标识：↗ 右斜 / ↙ 左斜 */
+/* 斜体方向标识：/ 右斜 / \ 左斜 */
 #btnItalic .italic-dir {
-  font-style: normal; font-size: 11px; margin-left: 2px;
+  font-style: normal; font-size: 12px; margin-left: 3px;
   display: inline-block; vertical-align: 1px;
 }
 
+/* 顶部居中悬浮提示：滚动到任意位置都可见 */
 #status {
   display: none;
-  padding: 8px 16px; font-size: 13px;
-  background: #fef2f2; color: #b91c1c;
-  border-bottom: 1px solid #fecaca;
+  position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+  z-index: 100; max-width: min(720px, 86vw);
+  padding: 9px 18px; font-size: 13px; line-height: 1.6;
+  border-radius: 8px; text-align: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .14);
+  background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;
 }
 #status.show { display: block; }
 #status.ok { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
@@ -111,6 +115,23 @@ input:disabled, select:disabled, button:disabled { opacity: .45; cursor: not-all
   pointer-events: none;
 }
 #pageBadge.show { opacity: 1; }
+
+/* 左下角缩放条：− / 比例 / +，点比例恢复 100% */
+#zoomBar {
+  position: fixed; left: 16px; bottom: 16px; z-index: 30;
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 3px; background: #fff;
+  border: 1px solid #e5e7eb; border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .12);
+}
+#zoomBar[hidden] { display: none; }
+#zoomBar button {
+  border: none; background: transparent; padding: 5px 9px;
+  font-size: 14px; border-radius: 6px;
+}
+#zoomBar button:hover:not(:disabled) { background: #f3f4f6; }
+#zoomBar button:disabled { opacity: .35; }
+#zoomBar #zoomPct { min-width: 54px; font-size: 13px; font-weight: 500; color: #374151; }
 
 #hint { text-align: center; color: #6b7280; margin-top: 48px; line-height: 1.9; }
 #pages {

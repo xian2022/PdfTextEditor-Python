@@ -2,7 +2,16 @@
 // 后端不可用时直接报错并提示启动方式，不保留 JS 兜底管线。
 import { loadFontBytes } from './pdf-save.js';
 
-const BACKEND_URLS = ['http://127.0.0.1:8765', 'http://localhost:8765'];
+// 优先当前页面同源地址（后端托管前端时端口可能因占用自动变化），
+// 其次回退到默认端口，兼容 vite 开发模式（页面在 5173、后端在 8765）。
+const BACKEND_URLS = (() => {
+  const list = [];
+  if (typeof location !== 'undefined' && location.origin && /^https?:$/.test(location.protocol)) {
+    list.push(location.origin);
+  }
+  list.push('http://127.0.0.1:8765', 'http://localhost:8765');
+  return [...new Set(list)];
+})();
 const BACKEND_TIMEOUT = 120000;
 const MOVED_THRESHOLD_PT = 3; // 与 main.js 中 4px / RENDER_SCALE(1.5) 的移动判定一致
 

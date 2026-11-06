@@ -33,6 +33,7 @@ const el = {
   btnFontDir: $('btnFontDir'),
   btnSave: $('btnSave'), btnDiscard: $('btnDiscard'),
   pages: $('pages'), hint: $('hint'), status: $('status'), pageBadge: $('pageBadge'),
+  zoomBar: $('zoomBar'), btnZoomOut: $('btnZoomOut'), btnZoomIn: $('btnZoomIn'), zoomPct: $('zoomPct'),
 };
 
 let pdfBytes = null;
@@ -172,6 +173,7 @@ async function openPdf(file, password) {
   setStatus(`已打开：${currentFileName}（${doc.numPages} 页）`, false);
   recordRecent(file, pdfBytes); // 记入历史项目
   switchTab('edit'); // 打开后自动切到编辑标签
+  resetZoom(); // 显示缩放复位 100%，显示左下角缩放条
   updatePageBadge(true); // 显示一次页标
   if (editMode) {
     for (const p of pages) ensureTextLayer(p);
@@ -967,15 +969,16 @@ function refreshFontSelect() {
   if (prev && [...fonts.values()].some((f) => f.id === prev)) el.fontSelect.value = prev;
 }
 
-/** 网页版：从部署目录 fonts-library/ 加载字体库（桌面版走字体目录）。可重复调用（按文件名去重） */
+/** 网页版：从本地后端加载字体库（清单 /api/fonts + 文件 /fonts-library/<名>，用户目录优先）。可重复调用（按文件名去重） */
 async function loadWebFontLibrary() {
   if (window.electronAPI?.listFonts) return;
   try {
-    const res = await fetch(`${import.meta.env.BASE_URL}fonts-library/manifest.json`);
+    const res = await fetch(`${import.meta.env.BASE_URL}api/fonts`);
     if (!res.ok) return;
-    const list = await res.json();
+    const data = await res.json();
+    const names = [...new Set(Object.values(data.fonts || {}))]; // 按文件名去重
     let added = 0;
-    for (const name of list) {
+    for (const name of names) {
       if ([...fonts.values()].some((x) => x.file === name)) continue; // 已加载的跳过
       try {
         const fr = await fetch(`${import.meta.env.BASE_URL}fonts-library/${encodeURIComponent(name)}`);
@@ -1014,6 +1017,21 @@ async function loadUserFonts() {
   }
 }
 
+/** Uint8Array → base64（分块避免参数过长） */
+function bytesToBase64(bytes) {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  let bin = '';
+  const CHUNK = 0x8000;
+  for (let i = 0; i < u8.length; i += CHUNK) {
+    bin += String.fromCharCode.apply(null, u8.subarray(i, i + CHUNK));
+  }
+  return btoa(bin);
+}
+
+el.btnLoadFont.addEventListener('click', () => {
+  el.fontInput.click(); // 弹出文件选择器（accept 已限定字体后缀）
+});
+
 el.fontInput.addEventListener('change', async () => {
   const files = [...el.fontInput.files];
   el.fontInput.value = '';
@@ -1030,7 +1048,21 @@ el.fontInput.addEventListener('change', async () => {
           setStatus(`字体已加载（保存到字体目录失败：${err.message}）`, true);
         }
       } else {
-        setStatus(`字体已导入：${f.name}（网页版仅本次会话有效）`, false);
+        // 网页版：POST 给本地后端写入用户字体目录（持久化，与后端嵌入用同一份）
+        try {
+          const res = await fetch(`${import.meta.env.BASE_URL}api/fonts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: f.name, data: bytesToBase64(bytes) }),
+          });
+          if (!res.ok) {
+            const j = await res.json().catch(() => ({}));
+            throw new Error(j.error || `HTTP ${res.status}`);
+          }
+          setStatus(`字体已导入并保存到字体目录：${f.name}`, false);
+        } catch (err) {
+          setStatus(`字体已加载（保存到字体目录失败：${err.message}）`, true);
+        }
       }
     } catch (err) {
       setStatus(`字体导入失败（${f.name}）：${err.message}`, true);
@@ -1222,7 +1254,7 @@ function updateItalicBtn(box) {
   const mark = el.btnItalic.querySelector('.italic-dir');
   if (mark) {
     mark.hidden = !active;
-    mark.textContent = left ? '↙' : '↗';
+    mark.textContent = left ? '\\' : '/';
   }
   el.btnItalic.title = !active
     ? '斜体'
@@ -1397,7 +1429,8 @@ function switchTab(tab) {
 function setEditToolsEnabled(on) {
   const controls = el.panelEdit.querySelectorAll('#editTools button, #editTools input, #editTools select');
   for (const c of controls) {
-    if (c.id === 'fontInput') continue; // 隐藏的文件选择框不受影响
+    // 字体管理在浏览/编辑两种模式下都可用
+    if (c.id === 'fontInput' || c.id === 'btnLoadFont' || c.id === 'btnReloadFonts' || c.id === 'btnFontDir') continue;
     c.disabled = !on;
   }
   if (on) refreshUndoButtons();
@@ -1525,10 +1558,39 @@ function closeProject(statusMsg) {
   clearSession();
   refreshUndoButtons();
   hidePageBadge();
+  el.zoomBar.hidden = true;
   setStatus(statusMsg || '已关闭当前项目。', false);
 }
 
-// ---------------- 右下角页标（滚动时显示 当前页/总页数） ----------------
+// ---------------- 显示缩放（左下角缩放条，50%~300%；CSS zoom 只影响显示，不影响导出坐标） ----------------
+const ZOOM_MIN = 0.5, ZOOM_MAX = 3, ZOOM_STEP = 0.1;
+let displayZoom = 1;
+
+function applyZoom() {
+  displayZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(displayZoom * 100) / 100));
+  el.pages.style.zoom = String(displayZoom);
+  el.zoomPct.textContent = `${Math.round(displayZoom * 100)}%`;
+  el.btnZoomOut.disabled = displayZoom <= ZOOM_MIN;
+  el.btnZoomIn.disabled = displayZoom >= ZOOM_MAX;
+}
+
+function setZoom(z, showBadge = true) {
+  displayZoom = z;
+  applyZoom();
+  if (showBadge) updatePageBadge(true); // 缩放时同步显示页标+比例
+}
+
+function resetZoom() {
+  el.zoomBar.hidden = false;
+  displayZoom = 1;
+  applyZoom();
+}
+
+el.btnZoomOut.addEventListener('click', () => setZoom(displayZoom - ZOOM_STEP));
+el.btnZoomIn.addEventListener('click', () => setZoom(displayZoom + ZOOM_STEP));
+el.zoomPct.addEventListener('click', () => setZoom(1));
+
+// ---------------- 右下角页标（滚动/缩放时显示 当前页/总页数 · 比例） ----------------
 let badgeTimer = null;
 
 function currentPageIndex() {
@@ -1545,7 +1607,7 @@ function currentPageIndex() {
 
 function updatePageBadge(forceShow) {
   if (!pages.length) return;
-  el.pageBadge.textContent = `${currentPageIndex() + 1} / ${pages.length}`;
+  el.pageBadge.textContent = `${currentPageIndex() + 1} / ${pages.length} · ${Math.round(displayZoom * 100)}%`;
   el.pageBadge.classList.add('show');
   clearTimeout(badgeTimer);
   badgeTimer = setTimeout(() => el.pageBadge.classList.remove('show'), forceShow ? 2500 : 1200);

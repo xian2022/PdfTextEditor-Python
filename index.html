@@ -43,7 +43,7 @@
             </label>
             <span class="divider"></span>
             <button id="btnBold" title="粗体"><b>B</b></button>
-            <button id="btnItalic" title="斜体（再点切换方向：右斜 → 左斜）"><i>I</i><span class="italic-dir" hidden>↗</span></button>
+            <button id="btnItalic" title="斜体（再点切换方向：右斜 → 左斜）"><i>I</i><span class="italic-dir" hidden>/</span></button>
             <button id="btnUnderline" title="下划线"><u>U</u></button>
             <span class="divider"></span>
             <label class="field">颜色
@@ -53,8 +53,8 @@
               <input id="bgColor" type="color" value="#ffffff" />
               <input id="bgNone" type="checkbox" /> 无色
             </label>
-            <button id="btnLoadFont" title="导入 .ttf / .otf / .woff / .woff2 字体文件">导入字体</button>
-            <input type="file" id="fontInput" accept=".ttf,.otf,.woff,.woff2" multiple hidden />
+            <button id="btnLoadFont" title="导入 .ttf / .otf / .ttc / .woff / .woff2 字体文件">导入字体</button>
+            <input type="file" id="fontInput" accept=".ttf,.otf,.ttc,.woff,.woff2" multiple hidden />
             <button id="btnReloadFonts" title="重新检索字体库/字体目录中的字体">加载字体</button>
             <button id="btnFontDir" title="打开本地字体目录（把字体文件放进去即可扩展）" hidden>字体目录</button>
             <span class="tip">设置实时应用到选中的文本框</span>
@@ -71,6 +71,11 @@
       </div>
       <main id="pages"></main>
       <div id="pageBadge"></div>
+      <div id="zoomBar" hidden title="显示缩放（50% ~ 300%）">
+        <button id="btnZoomOut" title="缩小" aria-label="缩小">−</button>
+        <button id="zoomPct" title="点击恢复 100%">100%</button>
+        <button id="btnZoomIn" title="放大" aria-label="放大">+</button>
+      </div>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>
