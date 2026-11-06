@@ -448,12 +448,17 @@ async function ensureTextLayer(p) {
     }
     if (cur) lines.push(cur);
 
-    // 竖向连续文字（如竖排的"销售方信息"）合并为一个多行竖排框
+    // 竖向连续文字（如竖排的"销售方信息"）合并为一个多行竖排框。
+    // 只合并"每行一个字符"的窄行：普通段落/表格单元格换行（左对齐、行距紧凑）
+    // 同样满足下面的坐标条件，必须用行宽排除，否则整段会被误判成竖排。
+    const isCharLine = (l) => l.x1 - l.x0 < l.size0 * 1.6;
     const merged = [];
     for (const line of lines) {
       const prev = merged[merged.length - 1];
       if (
         prev &&
+        isCharLine(prev) &&
+        isCharLine(line) &&
         Math.abs(line.x0 - prev.x0) < prev.size0 * 0.3 &&
         // 纵向间距必须非常小（竖向字符紧邻；发票号码/日期这类隔行字段不合并）
         Math.abs(prev.y0 - line.y1) < prev.size0 * 0.35 &&
@@ -1831,6 +1836,7 @@ window.__pdfEditor = {
         bbox: [l.x0, l.y0, l.x1, l.y1],
         family: l.family,
         fontNameRaw: l.fontNameRaw,
+        vertical: !!l.vertical,
       }))
     ),
   fontDebug: () => pages.map((p) => ({ entries: p.fontEntries, map: p.fontNameMap })),
