@@ -1169,7 +1169,7 @@ async function save() {
       if (!ok) setStatus('已取消导出。', true);
       else {
         clearSession();
-        setStatus('已导出：' + fileName + warnNote, !result.warnings?.length);
+        setStatus('已导出：' + fileName + warnNote, false); // 成功提示：绿色
       }
     } else {
       const blob = new Blob([out], { type: 'application/pdf' });
@@ -1179,7 +1179,7 @@ async function save() {
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 10000);
       clearSession();
-      setStatus('已导出：' + fileName + warnNote, !result.warnings?.length);
+      setStatus('已导出：' + fileName + warnNote, false); // 成功提示：绿色
     }
   } catch (err) {
     console.error(err);
