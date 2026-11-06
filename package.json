@@ -16,7 +16,8 @@
     "test": "./backend/.venv/bin/python backend/test_http.py",
     "electron": "npm run build && electron .",
     "dist": "npm run build && electron-builder",
-    "dist:dir": "npm run build && electron-builder --dir"
+    "dist:dir": "npm run build && electron-builder --dir",
+    "build:backend": "pyinstaller --onefile --name pdf-editor-backend --distpath backend-bin --workpath .pyi-build --specpath .pyi-build backend/app.py"
   },
   "devDependencies": {
     "@pdf-lib/fontkit": "^1.1.1",
@@ -36,6 +37,12 @@
       "dist/**/*",
       "electron/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "backend-bin",
+        "to": "backend-bin"
+      }
     ],
     "mac": {
       "target": [

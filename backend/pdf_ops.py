@@ -11,6 +11,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import io
+import os
 import re
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -20,8 +21,12 @@ from fontTools import subset as ft_subset
 from fontTools.ttLib import TTFont
 
 # 字体搜索目录：项目内置字体库 + 用户安装字体目录（用户目录优先）
+# 桌面版通过 PDFTEXTEDITOR_USER_FONT_DIR 指定为 Electron userData/fonts
 REPO_FONT_DIR = Path(__file__).resolve().parent.parent / "fonts-library"
-USER_FONT_DIR = Path.home() / "Library" / "Application Support" / "PDFTextEditor" / "fonts"
+USER_FONT_DIR = Path(
+    os.environ.get("PDFTEXTEDITOR_USER_FONT_DIR")
+    or (Path.home() / "Library" / "Application Support" / "PDFTextEditor" / "fonts")
+)
 DEFAULT_FONT_DIRS: List[Path] = [USER_FONT_DIR, REPO_FONT_DIR]
 
 FONT_ALIASES: Dict[str, List[str]] = {

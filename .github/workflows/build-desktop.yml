@@ -31,6 +31,18 @@ jobs:
       # npm run build 会通过 prebuild 自动下载中文字体并复制 worker
       - run: npm run build
 
+      # 用 PyInstaller 把 Python 导出后端打成独立可执行文件
+      # （桌面版启动时由 Electron 主进程自动拉起，导出不再依赖用户自装 Python）
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 构建 Python 后端可执行文件
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller -r backend/requirements.txt
+          pyinstaller --onefile --name pdf-editor-backend --distpath backend-bin --workpath .pyi-build --specpath .pyi-build backend/app.py
+
       # macOS：目录版 + ad-hoc 临时签名 + 自建 dmg/zip
       # （无 Apple 开发者证书，临时签名可避免"已损坏"，首次打开右键→打开即可）
       - name: 打包 macOS（目录版 + 临时签名）
