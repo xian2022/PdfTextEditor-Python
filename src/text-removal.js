@@ -330,13 +330,12 @@ export function findTextRuns(ops, bytesOf) {
 }
 
 /**
- * 标记落在矩形内且字形数吻合的文字绘制指令
+ * 收集落在矩形内且字形数吻合的文字绘制指令（不做字形数校验）
  * @param {Array} runs findTextRuns 的结果
  * @param {{x0:number,x1:number,y0:number,y1:number}} rect 用户空间矩形
- * @param {number} expectGlyphs 期望的总字形数（-1 表示不校验）
  * @returns {{ marked:Set, matched:number }} 匹配到的指令集合与字形总数
  */
-export function markRunsInRect(runs, rect, expectGlyphs) {
+export function collectRunsInRect(runs, rect) {
   const marked = new Set();
   let matched = 0;
   for (const r of runs) {
@@ -345,6 +344,18 @@ export function markRunsInRect(runs, rect, expectGlyphs) {
       matched += r.glyphCount;
     }
   }
+  return { marked, matched };
+}
+
+/**
+ * 标记落在矩形内的文字绘制指令；字形数不吻合时返回 null（不删除）
+ * @param {Array} runs findTextRuns 的结果
+ * @param {{x0:number,x1:number,y0:number,y1:number}} rect 用户空间矩形
+ * @param {number} expectGlyphs 期望的总字形数（-1 表示不校验）
+ * @returns {{ marked:Set, matched:number }|null} 匹配到的指令集合与字形总数
+ */
+export function markRunsInRect(runs, rect, expectGlyphs) {
+  const { marked, matched } = collectRunsInRect(runs, rect);
   if (expectGlyphs >= 0 && Math.abs(matched - expectGlyphs) > 3) return null; // 校验失败：不删除（容差 3 字形）
   return { marked, matched };
 }
