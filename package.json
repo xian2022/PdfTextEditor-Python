@@ -1,6 +1,6 @@
 {
   "name": "pdf-text-editor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "轻量 PDF 文本编辑器：网页/桌面端打开 PDF，添加文本标注后导出新 PDF",
   "private": true,
   "type": "module",
