@@ -22,6 +22,27 @@ async function inflate(bytes) {
 }
 
 /**
+ * 从资源字典的 Font 收集字体资源名 -> 每字形字节数（Type0 复合字体为 2，其余 1）
+ * 用于十六进制字符串的字形数消歧：长度能被 4 整除时既可能是 1 字节也可能是 2 字节码
+ */
+function collectFontWidths(pdfDoc, res) {
+  const map = new Map();
+  if (!res) return map;
+  let fonts = res.lookup(PDFName.of('Font'));
+  if (fonts instanceof PDFRef) fonts = pdfDoc.context.lookup(fonts);
+  if (!fonts || typeof fonts.keys !== 'function') return map;
+  for (const key of fonts.keys()) {
+    const val = fonts.lookup(key);
+    const obj = val instanceof PDFRef ? pdfDoc.context.lookup(val) : val;
+    const dict = obj && obj.dict ? obj.dict : null;
+    const subtype = dict ? String(dict.get(PDFName.of('Subtype')) || '') : '';
+    const name = String(key).replace(/^\/+/, '');
+    map.set(name, subtype === '/Type0' ? 2 : 1);
+  }
+  return map;
+}
+
+/**
  * 真正删除页面内容流中指定矩形区域内的文字绘制指令（保留背景）
  * @returns {boolean} 是否成功删除至少一条文字
  */
@@ -29,6 +50,9 @@ async function removeTextFromPage(pdfDoc, page, rect, expectGlyphs) {
   let any = false;
   const contents = page.node.Contents();
   const arr = contents && contents.asArray ? contents.asArray() : contents ? [contents] : [];
+  const pageRes = page.node.Resources();
+  const pageResObj = pageRes instanceof PDFRef ? pdfDoc.context.lookup(pageRes) : pageRes;
+  const pageWidths = collectFontWidths(pdfDoc, pageResObj);
   const parts = [];
   for (const item of arr) {
     const obj = item instanceof PDFRef ? pdfDoc.context.lookup(item) : item;
@@ -37,7 +61,7 @@ async function removeTextFromPage(pdfDoc, page, rect, expectGlyphs) {
     const dec = await inflate(raw);
     const str = latin1(dec);
     const ops = tokenize(str);
-    const runs = findTextRuns(ops);
+    const runs = findTextRuns(ops, (name) => pageWidths.get(name) || 1);
     const res = markRunsInRect(runs, rect, expectGlyphs);
     if (res && res.marked.size > 0) {
       parts.push(serializeOps(ops, res.marked));
@@ -48,7 +72,10 @@ async function removeTextFromPage(pdfDoc, page, rect, expectGlyphs) {
   }
   if (any && parts.length) {
     const merged = parts.join('\n');
-    page.node.set(PDFName.of('Contents'), pdfDoc.context.stream(encode(merged)));
+    // 必须注册为间接对象：PDF 规范要求流只能是间接对象，直接内联会被
+    // 写入对象流导致文件损坏（MuPDF 报 corrupt object stream）
+    const streamRef = pdfDoc.context.register(pdfDoc.context.stream(encode(merged)));
+    page.node.set(PDFName.of('Contents'), streamRef);
   }
   // 表单 XObject（页面资源里嵌套的内容流）
   try {
@@ -65,10 +92,17 @@ async function removeTextFromPage(pdfDoc, page, rect, expectGlyphs) {
         if (!raw) continue;
         const dec = await inflate(raw);
         const ops = tokenize(latin1(dec));
-        const runs = findTextRuns(ops);
+        // 表单自身的资源（字体按表单资源字典判定字节数）
+        const fres = obj.dict && obj.dict.get ? obj.dict.get(PDFName.of('Resources')) : null;
+        const fresObj = fres instanceof PDFRef ? pdfDoc.context.lookup(fres) : fres;
+        const formWidths = collectFontWidths(pdfDoc, fresObj);
+        const runs = findTextRuns(ops, (name) => formWidths.get(name) || pageWidths.get(name) || 1);
         const r2 = markRunsInRect(runs, rect, expectGlyphs);
         if (r2 && r2.marked.size > 0) {
-          xobj.set(key, pdfDoc.context.stream(encode(serializeOps(ops, r2.marked))));
+          const sref = pdfDoc.context.register(
+            pdfDoc.context.stream(encode(serializeOps(ops, r2.marked)))
+          );
+          xobj.set(key, sref);
           any = true;
         }
       }

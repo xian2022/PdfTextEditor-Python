@@ -154,34 +154,92 @@ function parseName(tok) {
   return r.startsWith('/') ? r.slice(1) : r;
 }
 
-function hexGlyphCount(hexTok) {
-  const body = hexTok.raw.slice(1, -1).replace(/\s+/g, '');
-  if (body.length % 4 === 0) return body.length / 4; // 2 字节码
-  return body.length / 2; // 1 字节码
+/** 字面字符串 (…) 的字形数：按字符计数（单字节编码），处理转义与八进制 */
+function litGlyphCount(litTok) {
+  const raw = litTok.raw;
+  let n = 0;
+  for (let i = 1; i < raw.length - 1; i++) {
+    if (raw[i] === '\\') {
+      i++;
+      if (i >= raw.length - 1) break;
+      if (raw[i] === '\n' || raw[i] === '\r') continue; // 行继续：无字形
+      if (raw[i] >= '0' && raw[i] <= '7') {
+        // 八进制转义 \ddd：最多 3 位
+        let k = 0;
+        while (k < 2 && i + 1 < raw.length - 1 && raw[i + 1] >= '0' && raw[i + 1] <= '7') {
+          i++;
+          k++;
+        }
+      }
+      n++;
+      continue;
+    }
+    n++;
+  }
+  return n;
 }
 
-function arrGlyphCount(arrTok) {
+/** 字符串操作数（字面量或十六进制串）的字形数；twoByte=true 表示 2 字节字形码 */
+function stringGlyphCount(tok, twoByte) {
+  if (!tok) return 0;
+  if (tok.type === 'hex') {
+    const body = tok.raw.slice(1, -1).replace(/\s+/g, '');
+    return twoByte ? body.length / 4 : body.length / 2;
+  }
+  if (tok.type === 'lit') return litGlyphCount(tok);
+  return 0;
+}
+
+function arrGlyphCount(arrTok, twoByte) {
   let count = 0;
   const body = arrTok.raw.slice(1, -1);
-  const re = /<([0-9A-Fa-f\s]*)>/g;
-  let m;
-  while ((m = re.exec(body)) !== null) {
-    const hex = m[1].replace(/\s+/g, '');
-    count += hex.length % 4 === 0 ? hex.length / 4 : hex.length / 2;
+  let i = 0;
+  while (i < body.length) {
+    const c = body[i];
+    if (c === '<') {
+      let j = body.indexOf('>', i);
+      if (j < 0) break;
+      const hex = body.slice(i + 1, j).replace(/\s+/g, '');
+      count += twoByte ? hex.length / 4 : hex.length / 2;
+      i = j + 1;
+    } else if (c === '(') {
+      let depth = 1;
+      let j = i + 1;
+      while (j < body.length && depth > 0) {
+        if (body[j] === '\\') {
+          j += 2;
+          continue;
+        }
+        if (body[j] === '(') depth++;
+        else if (body[j] === ')') depth--;
+        j++;
+      }
+      count += litGlyphCount({ raw: body.slice(i, j) });
+      i = j;
+    } else {
+      i++;
+    }
   }
   return count;
 }
 
-/** 分析内容流：返回文字绘制指令及其位置（用户空间坐标） */
-export function findTextRuns(ops) {
+/**
+ * 分析内容流：返回文字绘制指令及其位置（用户空间坐标）
+ * @param {Array} ops tokenize 的结果
+ * @param {(fontName:string)=>number} [bytesOf] 字体资源名 -> 每字形字节数（1 或 2），默认 1
+ */
+export function findTextRuns(ops, bytesOf) {
   const runs = [];
   let ctm = [1, 0, 0, 1, 0, 0];
   const stack = [];
   let textOn = false;
   let size = 12;
+  let fontName = '';
   let tm = [1, 0, 0, 1, 0, 0];
   let tlm = [1, 0, 0, 1, 0, 0];
   let leading = 0;
+
+  const twoByte = () => (bytesOf ? bytesOf(fontName) : 1) === 2;
 
   const mul = (m1, m2) => [
     m1[0] * m2[0] + m1[2] * m2[1],
@@ -228,6 +286,7 @@ export function findTextRuns(ops) {
         break;
       case 'Tf':
         size = a.length >= 2 ? parseNum(a[1]) : 12;
+        fontName = a.length >= 1 ? parseName(a[0]) : '';
         break;
       case 'Tm':
         if (a.length >= 6) {
@@ -251,19 +310,19 @@ export function findTextRuns(ops) {
       case "'":
         tlm = mul(tlm, [1, 0, 0, 1, 0, -leading]);
         tm = tlm.slice();
-        if (textOn && a.length >= 1) addRun(hexGlyphCount(a[0]), o);
+        if (textOn && a.length >= 1) addRun(stringGlyphCount(a[0], twoByte()), o);
         break;
       case '"':
         if (a.length >= 3) leading = -parseNum(a[2]);
         tlm = mul(tlm, [1, 0, 0, 1, parseNum(a[0]), parseNum(a[1])]);
         tm = tlm.slice();
-        if (textOn && a.length >= 4) addRun(hexGlyphCount(a[3]), o);
+        if (textOn && a.length >= 4) addRun(stringGlyphCount(a[3], twoByte()), o);
         break;
       case 'Tj':
-        if (textOn && a.length >= 1) addRun(hexGlyphCount(a[0]), o);
+        if (textOn && a.length >= 1) addRun(stringGlyphCount(a[0], twoByte()), o);
         break;
       case 'TJ':
-        if (textOn && a.length >= 1) addRun(arrGlyphCount(a[0]), o);
+        if (textOn && a.length >= 1) addRun(arrGlyphCount(a[0], twoByte()), o);
         break;
     }
   }

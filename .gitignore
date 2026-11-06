@@ -3,6 +3,7 @@ dist/
 release/
 public/fonts/
 public/fonts-library/
+public/fonts-library
 public/pdf.worker.min.mjs
 backend/.venv/
 __pycache__/
