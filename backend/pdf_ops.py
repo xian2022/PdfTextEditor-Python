@@ -182,6 +182,7 @@ class PdfBackend:
                    fontname: str, font_bytes: bytes, size: float,
                    color: Tuple[float, float, float] = (0, 0, 0),
                    bold: bool = False, italic: bool = False,
+                   italic_left: bool = False,
                    underline: bool = False) -> Dict:
         """在 (x, y_top) 写入一行文字（fontname 需已 insert_font 注册到该页）。"""
         if not text:
@@ -191,8 +192,11 @@ class PdfBackend:
         def draw(xx: float, yy: float):
             kwargs = dict(fontsize=size, fontname=fontname, color=color, overlay=True)
             if italic:
-                # 伪斜体：以基线起点为固定点，字形顶部向右剪切
-                kwargs["morph"] = (pymupdf.Point(xx, yy), pymupdf.Matrix(1, 0, -0.23, 1, 0, 0))
+                # 伪斜体：以基线起点为固定点做水平剪切。
+                # 实测（渲染验证）：Matrix(1,0,+0.23,1,0,0) 向右斜（常规斜体），
+                # Matrix(1,0,-0.23,1,0,0) 向左斜。
+                shear = -0.23 if italic_left else 0.23
+                kwargs["morph"] = (pymupdf.Point(xx, yy), pymupdf.Matrix(1, 0, shear, 1, 0, 0))
             page.insert_text(pymupdf.Point(xx, yy), text, **kwargs)
 
         if bold:
@@ -219,7 +223,7 @@ class PdfBackend:
                        "color": "#rrggbb", "boxId": id, "moved": bool}, ...],
           "texts":   [{"page": 0, "x": .., "y": .., "size": .., "text": ..,
                        "color": "#rrggbb" | [r,g,b], "bold": bool, "italic": bool,
-                       "underline": bool, "fontId": "f1", "boxId": id}, ...],
+                       "italicLeft": bool, "underline": bool, "fontId": "f1", "boxId": id}, ...],
           "fonts":   {"f1": {"bytes": "<base64>"}},   # 前端实际使用的字体字节
         }
         主字体缺字时按 FALLBACK_FONT_NAMES 逐字符回退；返回 (导出字节, 自检报告)。
@@ -385,6 +389,7 @@ class PdfBackend:
                 t["text"], fontname, sub_bytes, float(t.get("size", 12)),
                 color=parse_color(t.get("color", "#000000")),
                 bold=bool(t.get("bold")), italic=bool(t.get("italic")),
+                italic_left=bool(t.get("italicLeft")),
             )
             run_w = info["bbox"][2] - info["bbox"][0]
             # 下划线：整条文本一条线，按原始条目累计

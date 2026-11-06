@@ -534,6 +534,7 @@ function editTextLine(p, line, andEdit) {
     fontId: matchFont(line.family) || el.fontSelect.value,
     bold: false,
     italic: false,
+    italicLeft: false,
     underline: false,
     fromText: true,
     origFamily,
@@ -584,6 +585,7 @@ function addBox(overlay, x, y) {
     fontId: el.fontSelect.value,
     bold: el.btnBold.classList.contains('active'),
     italic: el.btnItalic.classList.contains('active'),
+    italicLeft: !!toolbarItalicLeft,
     underline: el.btnUnderline.classList.contains('active'),
   };
   pushUndo();
@@ -829,9 +831,9 @@ function applyBoxStyle(root, box) {
   }
   const fam = familyFor(box.fontId);
   if (fam) t.style.fontFamily = `'${fam}'`;
-  // Word 风格格式预览
+  // Word 风格格式预览（左斜用负角度 oblique，与后端 morph 剪切方向一致）
   t.style.fontWeight = box.bold ? 'bold' : 'normal';
-  t.style.fontStyle = box.italic ? 'italic' : 'normal';
+  t.style.fontStyle = box.italic ? (box.italicLeft ? 'oblique -14deg' : 'italic') : 'normal';
   t.style.textDecoration = box.underline ? 'underline' : 'none';
 }
 
@@ -869,7 +871,7 @@ function selectBox(box, boxEl) {
     el.bgColor.value = selectedBox.bgColor || '#ffffff';
     el.bgNone.checked = !selectedBox.bgColor;
     el.btnBold.classList.toggle('active', !!selectedBox.bold);
-    el.btnItalic.classList.toggle('active', !!selectedBox.italic);
+    updateItalicBtn(selectedBox);
     el.btnUnderline.classList.toggle('active', !!selectedBox.underline);
   }
 }
@@ -1101,6 +1103,7 @@ async function save() {
         fontId: b.fontId,
         bold: !!b.bold,
         italic: !!b.italic,
+        italicLeft: !!b.italicLeft,
         underline: !!b.underline,
         boxId: b.id,
         skipWhiteoutIfDeleted: !moved, // 原文删除成功且未移动时跳过填充
@@ -1208,8 +1211,47 @@ function fmtToggle(prop, btn) {
   }
 }
 el.btnBold.addEventListener('click', () => fmtToggle('bold', el.btnBold));
-el.btnItalic.addEventListener('click', () => fmtToggle('italic', el.btnItalic));
 el.btnUnderline.addEventListener('click', () => fmtToggle('underline', el.btnUnderline));
+
+// 斜体：三态循环 关 → 右斜 → 左斜 → 关；未选中时按钮状态作为新框默认
+let toolbarItalicLeft = false;
+function updateItalicBtn(box) {
+  const active = box ? !!box.italic : el.btnItalic.classList.contains('active');
+  const left = box ? !!box.italicLeft : !!toolbarItalicLeft;
+  el.btnItalic.classList.toggle('active', active);
+  const mark = el.btnItalic.querySelector('.italic-dir');
+  if (mark) {
+    mark.hidden = !active;
+    mark.textContent = left ? '↙' : '↗';
+  }
+  el.btnItalic.title = !active
+    ? '斜体'
+    : left
+      ? '斜体：向左斜（再点关闭）'
+      : '斜体：向右斜（再点切换左斜）';
+}
+el.btnItalic.addEventListener('click', () => {
+  const box = selectedBox;
+  const cur = box
+    ? { italic: !!box.italic, left: !!box.italicLeft }
+    : { italic: el.btnItalic.classList.contains('active'), left: !!toolbarItalicLeft };
+  const next = !cur.italic
+    ? { italic: true, left: false }
+    : !cur.left
+      ? { italic: true, left: true }
+      : { italic: false, left: false };
+  if (box) {
+    pushUndo();
+    box.italic = next.italic;
+    box.italicLeft = next.left;
+    applyBoxStyle(selectedBoxEl, box);
+    fitBox(box, selectedBoxEl);
+  } else {
+    el.btnItalic.classList.toggle('active', next.italic);
+  }
+  toolbarItalicLeft = next.left; // 新框默认沿用当前方向（关闭后回到右斜）
+  updateItalicBtn(box || null);
+});
 
 // 工具栏设置实时应用到选中的文本框（变更前记录一次快照用于撤销）
 let toolbarPending = null;

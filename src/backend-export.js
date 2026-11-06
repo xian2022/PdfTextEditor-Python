@@ -58,6 +58,7 @@ export async function buildBackendOps(annotations, fonts) {
         color: ann.color || '#000000',
         bold: !!ann.bold,
         italic: !!ann.italic,
+        italicLeft: !!ann.italicLeft,
         underline: !!ann.underline,
         fontId: String(ann.fontId),
         boxId: ann.boxId,

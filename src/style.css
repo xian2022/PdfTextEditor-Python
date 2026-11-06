@@ -86,6 +86,11 @@ input:disabled, select:disabled, button:disabled { opacity: .45; cursor: not-all
 #btnBold.active, #btnItalic.active, #btnUnderline.active {
   background: #2563eb; border-color: #2563eb; color: #fff;
 }
+/* 斜体方向标识：↗ 右斜 / ↙ 左斜 */
+#btnItalic .italic-dir {
+  font-style: normal; font-size: 11px; margin-left: 2px;
+  display: inline-block; vertical-align: 1px;
+}
 
 #status {
   display: none;
