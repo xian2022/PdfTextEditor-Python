@@ -833,9 +833,16 @@ function applyBoxStyle(root, box) {
   }
   const fam = familyFor(box.fontId);
   if (fam) t.style.fontFamily = `'${fam}'`;
-  // Word 风格格式预览（左斜用负角度 oblique，与后端 morph 剪切方向一致）
+  // Word 风格格式预览：右斜用原生 italic；左斜用 skewX(14deg)（实测顶向左 \）。
+  // 注意：Chrome 会忽略 font-style: oblique 的负角度，左斜必须走 transform。
   t.style.fontWeight = box.bold ? 'bold' : 'normal';
-  t.style.fontStyle = box.italic ? (box.italicLeft ? 'oblique -14deg' : 'italic') : 'normal';
+  if (box.italic && box.italicLeft) {
+    t.style.fontStyle = 'normal';
+    t.style.transform = 'skewX(14deg)';
+  } else {
+    t.style.fontStyle = box.italic ? 'italic' : 'normal';
+    t.style.transform = '';
+  }
   t.style.textDecoration = box.underline ? 'underline' : 'none';
 }
 
@@ -1251,10 +1258,10 @@ function updateItalicBtn(box) {
   const active = box ? !!box.italic : el.btnItalic.classList.contains('active');
   const left = box ? !!box.italicLeft : !!toolbarItalicLeft;
   el.btnItalic.classList.toggle('active', active);
-  const mark = el.btnItalic.querySelector('.italic-dir');
+  // 按钮就一个符号：未激活显示 I，激活时右斜显示 /，左斜显示 \
+  const mark = el.btnItalic.querySelector('.italic-mark');
   if (mark) {
-    mark.hidden = !active;
-    mark.textContent = left ? '\\' : '/';
+    mark.textContent = !active ? 'I' : left ? '\\' : '/';
   }
   el.btnItalic.title = !active
     ? '斜体'

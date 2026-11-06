@@ -86,10 +86,10 @@ input:disabled, select:disabled, button:disabled { opacity: .45; cursor: not-all
 #btnBold.active, #btnItalic.active, #btnUnderline.active {
   background: #2563eb; border-color: #2563eb; color: #fff;
 }
-/* 斜体方向标识：/ 右斜 / \ 左斜 */
-#btnItalic .italic-dir {
-  font-style: normal; font-size: 12px; margin-left: 3px;
-  display: inline-block; vertical-align: 1px;
+/* 斜体按钮：单一符号标识（未激活 I，激活 / 右斜、\ 左斜） */
+#btnItalic .italic-mark {
+  font-style: normal; font-size: 14px; font-weight: 600;
+  display: inline-block; min-width: 10px; line-height: 1;
 }
 
 /* 顶部居中悬浮提示：滚动到任意位置都可见 */
