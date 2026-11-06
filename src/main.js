@@ -1679,7 +1679,7 @@ function applyZoom() {
 function setZoom(z, showBadge = true) {
   displayZoom = z;
   applyZoom();
-  if (showBadge) updatePageBadge(true); // 缩放时同步显示页标+比例
+  if (showBadge) updatePageBadge(true); // 缩放时同步显示页标
 }
 
 function resetZoom() {
@@ -1692,7 +1692,44 @@ el.btnZoomOut.addEventListener('click', () => setZoom(displayZoom - ZOOM_STEP));
 el.btnZoomIn.addEventListener('click', () => setZoom(displayZoom + ZOOM_STEP));
 el.zoomPct.addEventListener('click', () => setZoom(1));
 
-// ---------------- 右下角页标（滚动/缩放时显示 当前页/总页数 · 比例） ----------------
+// 快捷键缩放：
+//  - Ctrl/Cmd + 滚轮（触控板双指捏合在系统层面会转成 ctrl+wheel 事件，自动生效）
+//  - Ctrl/Cmd + 上/下方向键、Ctrl/Cmd + +/- 键
+// 文本编辑中（输入框/正文编辑框）不拦截方向键，留给编辑用。
+let wheelZoomAcc = 0;
+window.addEventListener(
+  'wheel',
+  (e) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    if (!pages.length || !el.pages.contains(e.target)) return;
+    e.preventDefault();
+    wheelZoomAcc += e.deltaY;
+    const threshold = 40;
+    if (Math.abs(wheelZoomAcc) >= threshold) {
+      const sign = wheelZoomAcc > 0 ? 1 : -1;
+      const steps = Math.round(Math.abs(wheelZoomAcc) / threshold);
+      wheelZoomAcc -= sign * steps * threshold;
+      setZoom(displayZoom - sign * steps * 0.05);
+    }
+  },
+  { passive: false }
+);
+
+window.addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  if (!pages.length) return;
+  const t = e.target;
+  if (t && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName))) return;
+  if (e.key === 'ArrowUp' || e.key === '+' || e.key === '=') {
+    e.preventDefault();
+    setZoom(displayZoom + ZOOM_STEP);
+  } else if (e.key === 'ArrowDown' || e.key === '-' || e.key === '_') {
+    e.preventDefault();
+    setZoom(displayZoom - ZOOM_STEP);
+  }
+});
+
+// ---------------- 右下角页标（滚动/缩放时显示 当前页/总页数；比例在左下角缩放条） ----------------
 let badgeTimer = null;
 
 function currentPageIndex() {
@@ -1709,7 +1746,7 @@ function currentPageIndex() {
 
 function updatePageBadge(forceShow) {
   if (!pages.length) return;
-  el.pageBadge.textContent = `${currentPageIndex() + 1} / ${pages.length} · ${Math.round(displayZoom * 100)}%`;
+  el.pageBadge.textContent = `${currentPageIndex() + 1} / ${pages.length}`;
   el.pageBadge.classList.add('show');
   clearTimeout(badgeTimer);
   badgeTimer = setTimeout(() => el.pageBadge.classList.remove('show'), forceShow ? 2500 : 1200);
