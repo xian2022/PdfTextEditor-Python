@@ -1,0 +1,196 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #eef1f5;
+  color: #1f2937;
+}
+
+#toolbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; flex-direction: column; align-items: stretch;
+  gap: 6px;
+  padding: 8px 16px 10px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+}
+.title-row { display: flex; align-items: center; }
+.tabs-row { display: flex; align-items: center; gap: 10px; }
+.title { font-weight: 700; font-size: 15px; margin-right: 6px; }
+button {
+  border: 1px solid #d1d5db; background: #fff; border-radius: 6px;
+  padding: 6px 10px; cursor: pointer; font-size: 13px;
+}
+button:hover:not(:disabled) { background: #f3f4f6; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+#btnEdit.mode-edit { background: #16a34a; border-color: #16a34a; color: #fff; }
+#btnEdit.mode-browse { background: #2563eb; border-color: #2563eb; color: #fff; }
+#btnSave { background: #16a34a; border-color: #16a34a; color: #fff; }
+#btnDiscard { background: #dc2626; border-color: #dc2626; color: #fff; }
+#btnDiscard:hover:not(:disabled) { background: #b91c1c; border-color: #b91c1c; }
+.field { display: flex; align-items: center; gap: 5px; font-size: 13px; }
+#fontSize { width: 50px; padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 6px; }
+#fontSelect {
+  max-width: 190px; padding: 4px 6px;
+  border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;
+}
+#color { width: 34px; height: 27px; border: 1px solid #d1d5db; border-radius: 4px; padding: 1px; background: #fff; }
+.tip { font-size: 12px; color: #6b7280; }
+.spacer { flex: 1; }
+#pageInfo { font-size: 13px; color: #6b7280; }
+
+/* Word 风格标签页 */
+.tabs { display: flex; gap: 2px; margin-right: 8px; }
+.tab {
+  border: none; background: transparent; color: #6b7280;
+  font-size: 13px; padding: 6px 12px; cursor: pointer;
+  border-radius: 6px 6px 0 0; border-bottom: 2px solid transparent;
+}
+.tab:hover { background: #f3f4f6; }
+.tab.active { color: #2563eb; border-bottom-color: #2563eb; font-weight: 600; }
+.panel { display: none; }
+.panel.active { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* 历史项目下拉 */
+.dropdown { position: relative; }
+.dropdown-panel {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 50;
+  min-width: 240px; max-height: 320px; overflow-y: auto;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .12); padding: 6px;
+}
+.dropdown-panel.hidden { display: none; }
+.recent-item {
+  padding: 7px 10px; font-size: 13px; cursor: pointer;
+  border-radius: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.recent-item:hover { background: #eff6ff; }
+.recent-empty { padding: 10px; font-size: 13px; color: #9ca3af; }
+.recent-clear {
+  margin-top: 4px; padding: 6px 10px; font-size: 12px; color: #6b7280;
+  cursor: pointer; border-top: 1px solid #f3f4f6; border-radius: 0 0 5px 5px;
+}
+.recent-clear:hover { color: #b91c1c; background: #fef2f2; }
+
+/* 编辑工具组：浏览模式下禁用（灰显），编辑模式启用 */
+.group { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+input:disabled, select:disabled, button:disabled { opacity: .45; cursor: not-allowed; }
+.divider { width: 1px; height: 20px; background: #e5e7eb; margin: 0 2px; }
+
+/* Word 风格格式按钮 */
+#btnBold, #btnItalic, #btnUnderline {
+  min-width: 32px; padding: 5px 8px; font-size: 14px;
+}
+#btnBold b { font-weight: 700; }
+#btnBold.active, #btnItalic.active, #btnUnderline.active {
+  background: #2563eb; border-color: #2563eb; color: #fff;
+}
+
+#status {
+  display: none;
+  padding: 8px 16px; font-size: 13px;
+  background: #fef2f2; color: #b91c1c;
+  border-bottom: 1px solid #fecaca;
+}
+#status.show { display: block; }
+#status.ok { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+
+/* 右下角页标：移动 PDF（滚动）时显示当前页/总页数，无色底色 */
+#pageBadge {
+  position: fixed; right: 18px; bottom: 18px; z-index: 30;
+  padding: 4px 12px; border-radius: 6px;
+  background: transparent; color: #6b7280;
+  font-size: 13px; font-weight: 500;
+  opacity: 0; transition: opacity .25s;
+  pointer-events: none;
+}
+#pageBadge.show { opacity: 1; }
+
+#hint { text-align: center; color: #6b7280; margin-top: 48px; line-height: 1.9; }
+#pages {
+  padding: 20px 12px 60px;
+  display: flex; flex-direction: column; align-items: center; gap: 24px;
+}
+.page { background: #fff; box-shadow: 0 2px 12px rgba(0, 0, 0, .14); }
+.page-label { font-size: 12px; color: #6b7280; padding: 4px 6px; }
+.page-body { position: relative; }
+.page canvas { display: block; }
+
+.overlay { position: absolute; left: 0; top: 0; cursor: crosshair; }
+body.viewing .overlay { pointer-events: none; cursor: default; }
+
+/* 原文文字层（编辑模式下的可点击区域） */
+.text-line {
+  position: absolute; z-index: 1;
+  cursor: text; border-radius: 2px;
+}
+.text-line:hover { outline: 1.5px dashed rgba(37, 99, 235, .7); }
+body.viewing .text-line { display: none; }
+
+.box {
+  position: absolute; z-index: 2;
+  border: 1.5px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  cursor: move;
+}
+/* 预览态：悬停显示虚线提示（与选中态一致的"可编辑框"观感） */
+.box:hover:not(.selected):not(.editing) { outline: 1.5px dashed rgba(37, 99, 235, .55); }
+.box.selected { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, .25); }
+.box.editing { border-color: #2563eb; cursor: text; }
+.box-del {
+  position: absolute; top: -10px; right: -10px; z-index: 3;
+  width: 20px; height: 20px; padding: 0;
+  border: none; border-radius: 50%;
+  background: #2563eb; color: #fff;
+  font-size: 12px; line-height: 1; cursor: pointer;
+  display: none;
+}
+.box.selected .box-del, .box.editing .box-del, .box:hover .box-del { display: block; }
+.box-text {
+  outline: none; padding: 2px 5px; line-height: 1.25;
+  white-space: pre-wrap; word-break: normal;
+  overflow: hidden; min-height: 100%;
+  cursor: text;
+}
+.box-resize {
+  display: none;
+  position: absolute; right: -5px; bottom: -5px;
+  width: 11px; height: 11px; background: #2563eb;
+  border: 2px solid #fff; border-radius: 2px; cursor: nwse-resize;
+}
+.box.selected .box-resize, .box.editing .box-resize { display: block; }
+/* 原文删除区域标记：背景为页面原像素裁剪（隐藏原文），选中时虚线提示 */
+.cover-mark {
+  position: absolute; z-index: 1;
+  background: none;
+  outline: none;
+  cursor: pointer;
+}
+.cover-mark.show { outline: 1.5px dashed rgba(37, 99, 235, .6); }
+body.viewing .box { border-color: transparent; background: transparent; }
+body.viewing .box-del, body.viewing .box-resize { display: none; }
+body.viewing .box:hover:not(.selected):not(.editing) { outline: none; }
+body.viewing .box { cursor: default; }
+
+/* 文本框悬停字体提示 */
+#font-tip {
+  position: fixed;
+  z-index: 999;
+  max-width: 60vw;
+  padding: 4px 10px;
+  background: rgba(31, 41, 55, .92);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.5;
+  border-radius: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity .12s ease, transform .12s ease;
+}
+#font-tip.show { opacity: 1; transform: translateY(0); }

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PDF 文本编辑器</title>
+  </head>
+  <body class="viewing">
+    <div id="app">
+      <header id="toolbar">
+        <div class="title-row">
+          <div class="title">PDF 文本编辑器</div>
+          <span class="spacer"></span>
+          <button id="btnSave" disabled>导出 PDF</button>
+        </div>
+        <div class="tabs-row">
+          <div class="tabs">
+            <button class="tab active" data-tab="project">项目</button>
+            <button class="tab" data-tab="edit">编辑</button>
+          </div>
+          <span class="spacer"></span>
+        </div>
+        <div id="panel-project" class="panel active">
+          <button id="btnOpen">打开</button>
+          <input type="file" id="fileInput" accept="application/pdf,.pdf" hidden />
+          <div class="dropdown">
+            <button id="btnRecent" title="最近打开的项目">历史项目 ▾</button>
+            <div id="recentList" class="dropdown-panel hidden"></div>
+          </div>
+          <button id="btnClose" title="关闭当前项目">关闭项目</button>
+        </div>
+        <div id="panel-edit" class="panel">
+          <button id="btnEdit" class="mode-edit" disabled>编辑模式</button>
+          <div class="group" id="editTools">
+            <button id="btnUndo" disabled title="撤销 (Ctrl/Cmd+Z)">↶ 撤销</button>
+            <button id="btnRedo" disabled title="重做 (Ctrl/Cmd+Shift+Z)">↷ 重做</button>
+            <span class="divider"></span>
+            <label class="field">字号
+              <input id="fontSize" type="number" value="12" min="6" max="72" step="1" />
+            </label>
+            <label class="field">字体
+              <select id="fontSelect"></select>
+            </label>
+            <span class="divider"></span>
+            <button id="btnBold" title="粗体"><b>B</b></button>
+            <button id="btnItalic" title="斜体"><i>I</i></button>
+            <button id="btnUnderline" title="下划线"><u>U</u></button>
+            <span class="divider"></span>
+            <label class="field">颜色
+              <input id="color" type="color" value="#000000" />
+            </label>
+            <label class="field">底色
+              <input id="bgColor" type="color" value="#ffffff" />
+              <input id="bgNone" type="checkbox" /> 无色
+            </label>
+            <button id="btnLoadFont" title="导入 .ttf / .otf / .woff / .woff2 字体文件">导入字体</button>
+            <input type="file" id="fontInput" accept=".ttf,.otf,.woff,.woff2" multiple hidden />
+            <button id="btnReloadFonts" title="重新检索字体库/字体目录中的字体">加载字体</button>
+            <button id="btnFontDir" title="打开本地字体目录（把字体文件放进去即可扩展）" hidden>字体目录</button>
+            <span class="tip">设置实时应用到选中的文本框</span>
+            <span class="divider"></span>
+            <button id="btnDiscard" title="放弃本次编辑，恢复原始文档">放弃编辑</button>
+          </div>
+        </div>
+      </header>
+      <div id="status"></div>
+      <div id="hint">
+        <p>「项目」标签：新建、打开、历史项目、关闭项目。</p>
+        <p>「编辑」标签：进入编辑模式后使用全部编辑工具；编辑过程自动临时保存，完成后点「导出 PDF」下载。</p>
+        <p>编辑模式：单击原文选中（拖动移动，双击进入编辑）；双击空白处新建文本框；单击其他空白处提交预览。</p>
+      </div>
+      <main id="pages"></main>
+      <div id="pageBadge"></div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

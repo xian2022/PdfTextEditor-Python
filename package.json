@@ -1,0 +1,64 @@
+{
+  "name": "pdf-text-editor",
+  "version": "1.0.0",
+  "description": "轻量 PDF 文本编辑器：网页/桌面端打开 PDF，添加文本标注后导出新 PDF",
+  "private": true,
+  "type": "module",
+  "main": "electron/main.cjs",
+  "author": "Your Name <you@example.com>",
+  "scripts": {
+    "predev": "node scripts/fetch-font.mjs && node scripts/copy-worker.mjs && node scripts/gen-font-manifest.mjs",
+    "dev": "vite",
+    "prebuild": "node scripts/fetch-font.mjs && node scripts/copy-worker.mjs && node scripts/gen-font-manifest.mjs",
+    "build": "vite build",
+    "preview": "vite preview",
+    "fetch:font": "node scripts/fetch-font.mjs",
+    "test": "./backend/.venv/bin/python backend/test_http.py",
+    "electron": "npm run build && electron .",
+    "dist": "npm run build && electron-builder",
+    "dist:dir": "npm run build && electron-builder --dir"
+  },
+  "devDependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^4.10.38",
+    "vite": "^5.4.11"
+  },
+  "build": {
+    "appId": "com.github.pdftexteditor",
+    "productName": "PDFTextEditor",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office"
+    }
+  },
+  "dependencies": {
+    "fontkit": "^2.0.4"
+  }
+}
