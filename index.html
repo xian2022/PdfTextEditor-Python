@@ -39,7 +39,11 @@
               <input id="fontSize" type="number" value="12" min="6" max="72" step="1" />
             </label>
             <label class="field">字体
-              <select id="fontSelect"></select>
+              <div class="font-picker">
+                <input id="fontSearch" type="text" placeholder="搜索字体…" autocomplete="off" spellcheck="false" />
+                <input id="fontSelect" type="hidden" />
+                <div id="fontList" class="font-list hidden"></div>
+              </div>
             </label>
             <span class="divider"></span>
             <button id="btnBold" title="粗体"><b>B</b></button>

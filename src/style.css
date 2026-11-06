@@ -31,10 +31,26 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 #btnDiscard:hover:not(:disabled) { background: #b91c1c; border-color: #b91c1c; }
 .field { display: flex; align-items: center; gap: 5px; font-size: 13px; }
 #fontSize { width: 50px; padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 6px; }
-#fontSelect {
-  max-width: 190px; padding: 4px 6px;
+/* 字体选择器：搜索框 + 过滤下拉列表 */
+.font-picker { position: relative; }
+#fontSearch {
+  width: 190px; padding: 4px 6px;
   border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;
 }
+#fontList {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 60;
+  width: 260px; max-height: 280px; overflow-y: auto;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .12); padding: 4px;
+}
+#fontList.hidden { display: none; }
+.font-item {
+  padding: 6px 10px; font-size: 13px; border-radius: 5px; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.font-item:hover, .font-item.hl { background: #eff6ff; }
+.font-item.current { background: #dbeafe; }
+.font-empty { padding: 8px 10px; font-size: 12px; color: #9ca3af; }
 #color { width: 34px; height: 27px; border: 1px solid #d1d5db; border-radius: 4px; padding: 1px; background: #fff; }
 .tip { font-size: 12px; color: #6b7280; }
 .spacer { flex: 1; }

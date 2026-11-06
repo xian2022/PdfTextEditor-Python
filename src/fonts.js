@@ -52,11 +52,13 @@ function baseName(p) {
  * 解析并注册一个用户字体（TTF/OTF/WOFF/WOFF2）
  * 字体内部名称解析失败（部分大字体在老版 fontkit 下有兼容问题）时，
  * 不影响字体加载，名称回退为文件名。
+ * 但字体本身必须能被浏览器加载（FontFace.load 成功），否则视为不可用并抛出友好错误。
  * @param {ArrayBuffer|Uint8Array} bytes 字体二进制
  * @param {string} file 显示用文件名
  */
 export async function addFontFromBytes(bytes, file) {
   const buf = new Uint8Array(bytes);
+  if (!buf.length) throw new Error('字体文件不可用：文件内容为空');
   let name = null;
   try {
     const f = fontkit.create(buf);
@@ -68,7 +70,12 @@ export async function addFontFromBytes(bytes, file) {
   const id = 'font_' + Math.random().toString(36).slice(2, 10);
   const family = 'LocalFont' + id.replace(/[^a-zA-Z0-9]/g, '');
   const ff = new FontFace(family, buf);
-  await ff.load();
+  try {
+    await ff.load();
+  } catch (err) {
+    console.warn('字体加载失败（不可用）', file, err);
+    throw new Error('字体文件不可用：无法加载（文件可能已损坏或不是有效的字体文件）');
+  }
   document.fonts.add(ff);
   const entry = { id, name, file: file || null, bytes: buf, family };
   fonts.set(id, entry);

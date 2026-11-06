@@ -78,6 +78,25 @@ def font_cmap(font_bytes: bytes) -> Dict[int, str]:
         f.close()
 
 
+def validate_font_bytes(font_bytes: bytes) -> Optional[str]:
+    """校验字体文件是否可用（fontTools 能解析且带字符映射表）。
+
+    返回 None 表示可用，否则返回不可用原因（用户可读）。
+    """
+    if not font_bytes:
+        return "文件内容为空"
+    try:
+        f = TTFont(io.BytesIO(font_bytes), fontNumber=0, lazy=True)
+        try:
+            if not f.getBestCmap():
+                return "缺少字符映射表（cmap），无法用于文本显示"
+        finally:
+            f.close()
+    except Exception:  # noqa: BLE001
+        return "无法解析字体数据（文件可能已损坏或不是有效的字体文件）"
+    return None
+
+
 def subset_font_bytes(font_bytes: bytes, chars: str) -> bytes:
     """fontTools 子集化：只保留 chars 中用到的字形，输出完整可嵌入的字体程序。"""
     if not chars:

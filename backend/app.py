@@ -33,6 +33,7 @@ from pdf_ops import (  # noqa: E402
     USER_FONT_DIR,
     PdfBackend,
     build_font_index,
+    validate_font_bytes,
 )
 
 PORT = int(os.environ.get("PORT", "8765"))
@@ -166,6 +167,11 @@ class Handler(BaseHTTPRequestHandler):
             return
         if not data:
             self._send_json({"error": "字体数据为空"}, 400)
+            return
+        # 安全校验：fontTools 能解析且带 cmap 才视为可用，避免把损坏/伪造文件写入字体目录
+        invalid = validate_font_bytes(data)
+        if invalid:
+            self._send_json({"error": f"字体文件不可用：{invalid}"}, 400)
             return
         USER_FONT_DIR.mkdir(parents=True, exist_ok=True)
         dest = USER_FONT_DIR / stem

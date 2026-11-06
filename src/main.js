@@ -26,7 +26,7 @@ const el = {
   btnUndo: $('btnUndo'), btnRedo: $('btnRedo'),
   btnBold: $('btnBold'), btnItalic: $('btnItalic'), btnUnderline: $('btnUnderline'),
   fontSize: $('fontSize'),
-  color: $('color'), fontSelect: $('fontSelect'),
+  color: $('color'), fontSelect: $('fontSelect'), fontSearch: $('fontSearch'), fontList: $('fontList'),
   bgColor: $('bgColor'), bgNone: $('bgNone'),
   btnLoadFont: $('btnLoadFont'), fontInput: $('fontInput'),
   btnReloadFonts: $('btnReloadFonts'),
@@ -35,6 +35,7 @@ const el = {
   pages: $('pages'), hint: $('hint'), status: $('status'), pageBadge: $('pageBadge'),
   zoomBar: $('zoomBar'), btnZoomOut: $('btnZoomOut'), btnZoomIn: $('btnZoomIn'), zoomPct: $('zoomPct'),
 };
+el.fontSelect.value = DEFAULT_FONT_ID; // 字体选择器初始为内置字体
 
 let pdfBytes = null;
 let currentPdfDoc = null; // 当前 pdf.js 文档句柄，切换项目时销毁避免 worker 累积
@@ -876,7 +877,7 @@ function selectBox(box, boxEl) {
   if (selectedBox) {
     el.fontSize.value = selectedBox.fontSize;
     el.color.value = selectedBox.color;
-    el.fontSelect.value = selectedBox.fontId || DEFAULT_FONT_ID;
+    setFontSelectValue(selectedBox.fontId || DEFAULT_FONT_ID);
     el.bgColor.value = selectedBox.bgColor || '#ffffff';
     el.bgNone.checked = !selectedBox.bgColor;
     el.btnBold.classList.toggle('active', !!selectedBox.bold);
@@ -947,33 +948,123 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ---------------- 字体管理 ----------------
+// 可搜索字体选择器：隐藏 input 保存当前字体 id（兼容原有 value/change 用法），
+// 搜索框输入过滤，下拉列表点击选择并派发 change 事件。
+let fontItems = []; // { value, label, search }
+let fontVisible = []; // 当前过滤后可见项
+let fontHighlight = -1; // 键盘高亮索引
+
+/** 设置当前字体并同步搜索框显示名（找不到时回退内置字体） */
+function setFontSelectValue(id) {
+  const target = id || DEFAULT_FONT_ID;
+  el.fontSelect.value = target;
+  const it = fontItems.find((x) => x.value === target);
+  el.fontSearch.value = it ? it.label : defaultFontName();
+}
+
+function closeFontList() {
+  el.fontList.classList.add('hidden');
+  fontHighlight = -1;
+}
+
+function renderFontList(query) {
+  const q = (query || '').trim().toLowerCase();
+  fontVisible = q
+    ? fontItems.filter(
+        (it) => it.label.toLowerCase().includes(q) || it.search.toLowerCase().includes(q)
+      )
+    : [...fontItems];
+  el.fontList.innerHTML = '';
+  fontHighlight = -1;
+  if (!fontVisible.length) {
+    const d = document.createElement('div');
+    d.className = 'font-empty';
+    d.textContent = '没有匹配的字体';
+    el.fontList.appendChild(d);
+    return;
+  }
+  fontVisible.forEach((it, i) => {
+    const d = document.createElement('div');
+    d.className = 'font-item' + (it.value === el.fontSelect.value ? ' current' : '');
+    d.dataset.index = String(i);
+    d.textContent = it.label;
+    d.addEventListener('mousedown', (e) => {
+      e.preventDefault(); // 保持输入框焦点，避免先 blur 再选择
+      pickFontItem(it);
+    });
+    el.fontList.appendChild(d);
+  });
+}
+
+function moveFontHighlight(step) {
+  if (!fontVisible.length) return;
+  fontHighlight = Math.min(fontVisible.length - 1, Math.max(0, fontHighlight + step));
+  const nodes = el.fontList.querySelectorAll('.font-item');
+  nodes.forEach((n, i) => n.classList.toggle('hl', i === fontHighlight));
+  nodes[fontHighlight]?.scrollIntoView({ block: 'nearest' });
+}
+
+function pickFontItem(it) {
+  if (it.value !== el.fontSelect.value) {
+    setFontSelectValue(it.value);
+    el.fontSelect.dispatchEvent(new Event('change')); // 走统一 change 处理，应用到选中框
+  }
+  closeFontList();
+}
+
+el.fontSearch.addEventListener('focus', () => {
+  renderFontList(el.fontSearch.value);
+  el.fontList.classList.remove('hidden');
+});
+el.fontSearch.addEventListener('input', () => {
+  renderFontList(el.fontSearch.value);
+  el.fontList.classList.remove('hidden');
+});
+el.fontSearch.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeFontList();
+    el.fontSearch.value = fontItems.find((x) => x.value === el.fontSelect.value)?.label || '';
+    el.fontSearch.blur();
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    moveFontHighlight(1);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    moveFontHighlight(-1);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    const it = fontVisible[fontHighlight >= 0 ? fontHighlight : 0];
+    if (it) pickFontItem(it);
+  }
+});
+// 点击选择器外部时收起列表
+document.addEventListener('mousedown', (e) => {
+  if (!el.fontSearch.closest('.font-picker')?.contains(e.target)) closeFontList();
+});
+
 function refreshFontSelect() {
   const prev = el.fontSelect.value;
-  el.fontSelect.innerHTML = '';
-  const def = document.createElement('option');
-  def.value = DEFAULT_FONT_ID;
-  def.textContent = defaultFontName(); // 内置字体的真实名称（如"OPPO Sans 4.0"）
-  el.fontSelect.appendChild(def);
+  const items = [{ value: DEFAULT_FONT_ID, label: defaultFontName(), search: '内置字体' }];
   // 同名字体自动加序号区分（如"宋体"、"宋体(2)"）
-  const items = [...fonts.values()].map((f) => {
+  const userItems = [...fonts.values()].map((f) => {
     const fileBase = String(f.file || '').replace(/\\/g, '/').split('/').pop().replace(/\.[^.]+$/, '');
-    return { id: f.id, label: fileBase || f.name };
+    return { id: f.id, label: fileBase || f.name, search: f.name || '' };
   });
   const counts = {};
-  for (const it of items) counts[it.label] = (counts[it.label] || 0) + 1;
+  for (const it of userItems) counts[it.label] = (counts[it.label] || 0) + 1;
   const used = {};
-  for (const it of items) {
+  for (const it of userItems) {
     let label = it.label;
     if (counts[it.label] > 1) {
       used[it.label] = (used[it.label] || 0) + 1;
       label = `${it.label}(${used[it.label]})`;
     }
-    const o = document.createElement('option');
-    o.value = it.id;
-    o.textContent = label;
-    el.fontSelect.appendChild(o);
+    items.push({ value: it.id, label, search: `${it.search} ${label}`.toLowerCase() });
   }
-  if (prev && [...fonts.values()].some((f) => f.id === prev)) el.fontSelect.value = prev;
+  fontItems = items;
+  const keep = prev && fontItems.some((x) => x.value === prev);
+  setFontSelectValue(keep ? prev : DEFAULT_FONT_ID);
+  if (el.fontList && !el.fontList.classList.contains('hidden')) renderFontList(el.fontSearch.value);
 }
 
 /** 网页版：从本地后端加载字体库（清单 /api/fonts + 文件 /fonts-library/<名>，用户目录优先）。可重复调用（按文件名去重） */
@@ -1045,7 +1136,7 @@ el.fontInput.addEventListener('change', async () => {
   for (const f of files) {
     try {
       const bytes = await f.arrayBuffer();
-      await addFontFromBytes(bytes, f.name);
+      const entry = await addFontFromBytes(bytes, f.name); // 无效字体在此抛"不可用"
       // 桌面版：同时把字体文件写入用户字体目录，重启后自动加载
       if (window.electronAPI?.saveFontFile) {
         try {
@@ -1055,7 +1146,7 @@ el.fontInput.addEventListener('change', async () => {
           setStatus(`字体已加载（保存到字体目录失败：${err.message}）`, true);
         }
       } else {
-        // 网页版：POST 给本地后端写入用户字体目录（持久化，与后端嵌入用同一份）
+        // 网页版：POST 给本地后端写入用户字体目录（后端做 fontTools 校验，不可用会拒绝）
         try {
           const res = await fetch(`${import.meta.env.BASE_URL}api/fonts`, {
             method: 'POST',
@@ -1068,11 +1159,12 @@ el.fontInput.addEventListener('change', async () => {
           }
           setStatus(`字体已导入并保存到字体目录：${f.name}`, false);
         } catch (err) {
-          setStatus(`字体已加载（保存到字体目录失败：${err.message}）`, true);
+          fonts.delete(entry.id); // 后端判定不可用：从会话移除，避免导出时失败
+          setStatus(`字体不可用（${f.name}）：${err.message}`, true);
         }
       }
     } catch (err) {
-      setStatus(`字体导入失败（${f.name}）：${err.message}`, true);
+      setStatus(`字体不可用（${f.name}）：${err.message}`, true);
     }
   }
   refreshFontSelect();
