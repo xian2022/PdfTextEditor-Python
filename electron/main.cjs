@@ -96,6 +96,7 @@ async function startBackend() {
         PDFTEXTEDITOR_USER_FONT_DIR: fontsDir(),
       },
       stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true, // Windows：后端是控制台程序，隐藏闪现的黑窗口
     });
     backendProc = proc;
     proc.on('exit', () => {
